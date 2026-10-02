@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111418">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Zlot – Kto to?</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Kto to?</h1>
+    <span id="status" class="status">Ładowanie modeli…</span>
+  </header>
+
+  <main>
+    <!-- Widok kamery na żywo -->
+    <section id="view-live" class="view active">
+      <div class="stage">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="overlay"></canvas>
+        <div id="cam-placeholder" class="cam-placeholder">
+          <p>Naciśnij <b>Start</b>, aby włączyć kamerę.</p>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btn-start" class="primary">Start</button>
+        <button id="btn-flip" title="Przełącz kamerę" disabled>⟲ Kamera</button>
+        <button id="btn-snap" title="Dodaj osobę z kadru" disabled>＋ Z kadru</button>
+      </div>
+      <p class="hint">Dotknij ramki twarzy, aby dodać / dopisać tę osobę.</p>
+    </section>
+
+    <!-- Widok listy osób -->
+    <section id="view-people" class="view">
+      <form id="add-form" class="card">
+        <h2>Dodaj osobę ze zdjęć</h2>
+        <input id="add-name" type="text" placeholder="Imię i nazwisko" required autocomplete="off">
+        <label class="file">
+          <input id="add-files" type="file" accept="image/*" multiple>
+          <span id="add-files-label">Wybierz zdjęcia (najlepiej 3–5)</span>
+        </label>
+        <button type="submit" class="primary">Zapisz</button>
+        <p id="add-msg" class="msg"></p>
+      </form>
+
+      <div id="people" class="people"></div>
+
+      <div class="card">
+        <h2>Baza</h2>
+        <p class="small">Dane są tylko na tym telefonie. Możesz je wyeksportować i wczytać na innym urządzeniu.</p>
+        <div class="row">
+          <button id="btn-export">Eksportuj</button>
+          <label class="button">Importuj<input id="import-file" type="file" accept="application/json,.json" hidden></label>
+          <button id="btn-clear" class="danger">Wyczyść</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ustawienia -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <h2>Ustawienia</h2>
+        <label class="setting">
+          Próg rozpoznania: <b id="thr-val"></b>
+          <input id="thr" type="range" min="0.3" max="0.7" step="0.01">
+          <span class="small">Niżej = ostrzej (mniej pomyłek, więcej „Nieznany”).</span>
+        </label>
+        <label class="setting">
+          Rozdzielczość detekcji: <b id="size-val"></b>
+          <input id="size" type="range" min="128" max="608" step="32">
+          <span class="small">Wyżej = lepiej wykrywa małe/dalekie twarze, ale wolniej.</span>
+        </label>
+      </div>
+      <div class="card small">
+        <p>Rozpoznawanie działa w całości na telefonie (face-api / TensorFlow.js). Żadne zdjęcia nie są nigdzie wysyłane.</p>
+        <p>Pamiętaj o zgodzie osób, których twarze zapisujesz (RODO).</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="live" class="active">📷<span>Na żywo</span></button>
+    <button data-view="people">👥<span>Osoby <b id="people-count">0</b></span></button>
+    <button data-view="settings">⚙️<span>Ustawienia</span></button>
+  </nav>
+
+  <dialog id="dlg-add">
+    <form method="dialog">
+      <img id="dlg-thumb" alt="">
+      <p>Kim jest ta osoba?</p>
+      <input id="dlg-name" type="text" list="names" placeholder="Imię i nazwisko" autocomplete="off">
+      <datalist id="names"></datalist>
+      <p class="small">Jeśli wpiszesz istniejące imię, zdjęcie zostanie dopisane do tej osoby (lepsza skuteczność).</p>
+      <div class="row">
+        <button value="cancel">Anuluj</button>
+        <button value="ok" class="primary">Zapisz</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
