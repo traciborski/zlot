@@ -3,13 +3,13 @@ import * as faceapi from './vendor/face-api.esm.js';
 const MODEL_URL = './vendor/models';
 const DB_NAME = 'zlot-photo';
 const STORE = 'kv';
-const LIVE_THRESHOLD = 0.5;   // próg dla dzisiejszego wyglądu (po potwierdzeniu)
+const LIVE_THRESHOLD = 0.5;   // skala dla dzisiejszego wyglądu (po potwierdzeniu)
+const OLD_THRESHOLD = 0.63;   // skala dla starego zdjęcia (luźniej – 25 lat różnicy)
 const MAX_LIVE = 10;          // ile dzisiejszych ujęć pamiętamy na osobę
 // Skala procentowa podobieństwa: odległość ≤ D_SAME → 100%, ≥ D_DIFF → 0%.
 const D_SAME = 0.3;
 const D_DIFF = 0.9;
 const toPct = (d) => Math.round(Math.max(0, Math.min(1, (D_DIFF - d) / (D_DIFF - D_SAME))) * 100);
-const fromPct = (p) => D_DIFF - (p / 100) * (D_DIFF - D_SAME);
 
 const $ = (sel) => document.querySelector(sel);
 const statusEl = $('#status');
@@ -21,7 +21,6 @@ const photoCanvas = $('#photo-canvas');
 const frame = document.createElement('canvas'); // klatka z kamery (ew. w odcieniach szarości)
 
 const settings = {
-  threshold: parseFloat(localStorage.getItem('threshold')) || 0.63,
   inputSize: parseInt(localStorage.getItem('inputSize'), 10) || 416,
 };
 
@@ -501,19 +500,20 @@ function minDist(d, list) {
   return m;
 }
 
-// s ≤ 1 oznacza dopasowanie. Dzisiejszy wygląd (po potwierdzeniu) ma ostrzejszy próg.
+// s – wynik do sortowania (mniej = lepiej); dzisiejszy wygląd (po potwierdzeniu) ma ostrzejszą skalę.
 // pct – podobieństwo w procentach (do starego zdjęcia lub do potwierdzonego dzisiejszego wyglądu).
 function score(d, face) {
   const dOld = faceapi.euclideanDistance(d, face.old);
   const dLive = face.live.length ? minDist(d, face.live) : Infinity;
-  const old = dOld / settings.threshold;
+  const old = dOld / OLD_THRESHOLD;
   const live = dLive / LIVE_THRESHOLD;
   const confirmed = live <= old && live <= 1;
   return { s: Math.min(old, live), confirmed, pct: toPct(confirmed ? dLive : dOld), pctOld: toPct(dOld) };
 }
 
-// Każda osoba ze zdjęcia może być przypisana tylko jednej twarzy w kadrze
-// (przydział zachłanny: najpierw najbardziej podobne pary).
+// Każda twarz w kadrze dostaje jedno dopasowanie – najbardziej podobną osobę ze zdjęcia, bez progu.
+// Osoba ze zdjęcia może być przypisana tylko jednej twarzy (przydział zachłanny: najpierw najlepsze pary),
+// więc gdy dwie twarze pasują do tej samej osoby, słabsza dostaje kolejną najbardziej podobną.
 function assign(descriptors) {
   const faces = project ? project.faces : [];
   const result = descriptors.map((d) => {
@@ -524,7 +524,7 @@ function assign(descriptors) {
   const pairs = [];
   result.forEach((r, i) => {
     if (r.stranger) return;
-    for (const c of r.cands) if (c.s <= 1) pairs.push({ i, ...c });
+    for (const c of r.cands) pairs.push({ i, ...c });
   });
   pairs.sort((a, b) => a.s - b.s);
   const used = new Set();
@@ -631,7 +631,7 @@ async function loop() {
   running = false;
 }
 
-// Lista pod podglądem: dla każdej twarzy w kadrze 3 najbardziej podobne osoby ze zdjęcia (w %).
+// Lista pod podglądem: każda twarz z kadru i jej jedno dopasowanie ze zdjęcia (w %).
 let lastResultsRender = 0;
 function renderLiveResults(force = false) {
   const now = performance.now();
@@ -645,19 +645,14 @@ function renderLiveResults(force = false) {
   }
   el.innerHTML = faces.map((f) => {
     const idx = lastFaces.indexOf(f);
-    const head = f.match
-      ? `<b>${f.match.face.n}. ${escapeHtml(faceLabel(f.match.face))}</b> <span class="pct">${f.match.pct}%</span>${f.match.confirmed ? ' ✓' : ''}`
-      : f.stranger ? 'Spoza zdjęcia' : 'Nie wiadomo';
-    const rows = f.cands.slice(0, 3).map((c) => `
-      <div class="cand-row ${f.match?.face === c.face ? 'chosen' : ''}">
-        <img src="${c.face.thumb}" alt="">
-        <span class="name">${c.face.n}. ${escapeHtml(faceLabel(c.face))}</span>
-        <span class="bar"><i style="width:${c.pct}%"></i></span>
-        <b class="pct">${c.pct}%</b>
-      </div>`).join('');
-    return `<button class="result" data-i="${idx}">
-      <div class="result-head"><img src="${cropThumb(video, f.box, 96)}" alt=""><span>${head}</span></div>
-      ${rows}
+    const m = f.match;
+    const body = m
+      ? `<span class="arrow">→</span><img src="${m.face.thumb}" alt="">
+         <span class="name">${m.face.n}. ${escapeHtml(faceLabel(m.face))}${m.confirmed ? ' ✓' : ''}</span>
+         <b class="pct big">${m.pct}%</b>`
+      : `<span class="name muted">${f.stranger ? 'Spoza zdjęcia' : 'Wszyscy ze zdjęcia już przypisani'}</span>`;
+    return `<button class="result-row ${m?.confirmed ? 'confirmed' : ''}" data-i="${idx}">
+      <img src="${cropThumb(video, f.box, 96)}" alt="">${body}
     </button>`;
   }).join('');
 }
@@ -699,10 +694,11 @@ function draw(faces) {
   octx.font = `600 ${fontSize}px system-ui, sans-serif`;
   octx.textBaseline = 'top';
 
+  const labels = []; // podpisy rysujemy na końcu, żeby miniatury ich nie zasłaniały
   for (const f of faces) {
     const b = displayBox(f.box);
     let color = '#f5a524';
-    let label = 'Nie wiadomo';
+    let label = '—';
     if (f.match) {
       color = f.match.confirmed ? '#2fbf71' : '#3b9eff';
       label = `${f.match.face.n}. ${faceLabel(f.match.face)} ${f.match.pct}%${f.match.confirmed ? ' ✓' : ''}`;
@@ -719,10 +715,7 @@ function draw(faces) {
     const th = fontSize + pad * 2;
     const ly = b.y - th >= 0 ? b.y - th : b.y + b.height;
     const lx = Math.max(0, Math.min(b.x - lw / 2, W - tw));
-    octx.fillStyle = color;
-    octx.fillRect(lx, ly, tw, th);
-    octx.fillStyle = '#000';
-    octx.fillText(label, lx + pad, ly + pad);
+    labels.push({ lx, ly, tw, th, pad, color, label });
 
     // miniatura twarzy ze starego zdjęcia obok ramki
     if (f.match) {
@@ -735,6 +728,12 @@ function draw(faces) {
         octx.strokeRect(tx, b.y, ts, ts);
       }
     }
+  }
+  for (const l of labels) {
+    octx.fillStyle = l.color;
+    octx.fillRect(l.lx, l.ly, l.tw, l.th);
+    octx.fillStyle = '#000';
+    octx.fillText(l.label, l.lx + l.pad, l.ly + l.pad);
   }
 }
 
@@ -866,18 +865,6 @@ function bindSetting(id, key, fmt) {
     settings[key] = Number(input.value);
     out.textContent = fmt(settings[key]);
     localStorage.setItem(key, input.value);
-  });
-}
-// Próg pokazujemy jako minimalne podobieństwo w %, a przechowujemy jako odległość.
-{
-  const input = $('#thr');
-  const out = $('#thr-val');
-  input.value = toPct(settings.threshold);
-  out.textContent = `${input.value}%`;
-  input.addEventListener('input', () => {
-    settings.threshold = fromPct(Number(input.value));
-    out.textContent = `${input.value}%`;
-    localStorage.setItem('threshold', settings.threshold);
   });
 }
 bindSetting('size', 'inputSize', (v) => `${v}px`);

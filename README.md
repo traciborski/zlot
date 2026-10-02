@@ -24,23 +24,23 @@ Po pierwszym uruchomieniu działa też offline.
    - Dotknij twarzy bez ramki, żeby dodać osobę, której detektor nie znalazł.
    - Zdjęcia czarno-białe i w sepii są wykrywane automatycznie – wtedy obraz z kamery
      też jest analizowany w odcieniach szarości, żeby porównanie było uczciwe.
-2. **Na żywo → Start** – skieruj kamerę na ludzi. Przy każdej twarzy pojawia się
-   numer i imię ze zdjęcia oraz miniatura twarzy sprzed lat:
-   - 🔵 niebieska ramka „Imię 63%” – prawdopodobnie ta osoba (% podobieństwa do starego zdjęcia),
-   - 🟢 zielona ramka „Imię 90% ✓” – potwierdzona osoba,
-   - 🟠 „Nie wiadomo” – nikt ze zdjęcia nie pasuje wystarczająco,
+2. **Na żywo → Start** – skieruj kamerę na ludzi. **Każda twarz w kadrze dostaje jedno
+   dopasowanie**: najbardziej podobną osobę ze zdjęcia, z procentem podobieństwa
+   i miniaturą twarzy sprzed lat (np. „2. Basia 63%”):
+   - 🔵 niebieska ramka – dopasowanie automatyczne,
+   - 🟢 zielona ramka „✓” – dopasowanie potwierdzone,
    - ⚪ „Spoza zdjęcia” – osoba oznaczona jako nieobecna na zdjęciu.
-   Pod podglądem jest lista: dla każdej twarzy w kadrze 3 najbardziej podobne osoby
-   ze zdjęcia z procentem podobieństwa. **⏸ Zatrzymaj** zamraża klatkę, żeby spokojnie
-   odczytać wyniki.
-3. **Dotknij ramki twarzy** – zobaczysz 3 najbardziej podobne osoby ze zdjęcia.
-   Wybierz właściwą (albo inną z listy, albo „Nie ma go/jej na zdjęciu”).
+   Jedna osoba ze zdjęcia trafia tylko do jednej twarzy – jeśli dwie twarze pasują
+   do tej samej osoby, dostaje ją lepiej pasująca, a druga swoją kolejną najlepszą.
+   Pod podglądem jest lista „twarz dziś → twarz ze zdjęcia, %”.
+   **⏸ Zatrzymaj** zamraża klatkę, żeby spokojnie odczytać wyniki.
+3. **Dotknij twarzy** (na podglądzie albo na liście), żeby poprawić dopasowanie –
+   zobaczysz 3 najbardziej podobne osoby ze zdjęcia z procentami. Wybierz właściwą (albo inną z listy, albo „Nie ma go/jej na zdjęciu”).
    Po potwierdzeniu aplikacja zapamiętuje **dzisiejszy wygląd** tej osoby
    i od tej pory rozpoznaje ją pewnie (zielona ramka). Na liście w zakładce
    *Zdjęcie* widać „wtedy / dziś” i licznik „Znalezieni: X z Y”.
 4. **Eksport / Import** – przeniesienie zdjęcia z imionami i dopasowaniami na inny telefon.
-5. **Ustawienia** – minimalne podobieństwo (%), od którego twarz jest podpisywana
-   (domyślnie 45%, bo przez 25 lat ludzie się zmieniają) i rozdzielczość detekcji na żywo.
+5. **Ustawienia** – rozdzielczość detekcji na żywo.
 
 ### Jak czytać procenty
 
@@ -48,8 +48,8 @@ Procent to podobieństwo wektorów twarzy (100% = praktycznie to samo ujęcie,
 0% = zupełnie różne twarze), a nie prawdopodobieństwo, że to ta osoba.
 W testach obca osoba podobnego typu urody dostała nawet ~65%, a ta sama osoba
 na tym samym zdjęciu ~100%. Po 25 latach ta sama osoba zwykle wypada gdzieś
-pośrodku, więc najważniejsze jest **porównanie** – kto ma wyraźnie najwyższy
-wynik na liście kandydatów – a nie sama liczba.
+pośrodku. Aplikacja zawsze pokazuje najlepsze dopasowanie, także dla osób spoza
+zdjęcia – niski procent (poniżej ~50%) oznacza, że to raczej ktoś inny.
 
 ### Czego się spodziewać
 

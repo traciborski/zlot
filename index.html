@@ -68,10 +68,9 @@
         <button id="btn-flip" disabled>⟲ Kamera</button>
       </div>
       <p class="hint">
-        <span class="dot green"></span>potwierdzony
-        <span class="dot blue"></span>prawdopodobnie
-        <span class="dot orange"></span>nie wiadomo
-        <br>% = podobieństwo twarzy do osoby ze zdjęcia. Dotknij twarzy, aby potwierdzić, kto to jest.
+        Każda twarz dostaje najbardziej podobną osobę ze zdjęcia (% podobieństwa).
+        <br><span class="dot blue"></span>automatycznie <span class="dot green"></span>potwierdzone
+        <br>Dotknij twarzy, aby poprawić lub potwierdzić dopasowanie.
       </p>
       <div id="live-results" class="live-results"></div>
     </section>
@@ -80,11 +79,6 @@
     <section id="view-settings" class="view">
       <div class="card">
         <h2>Ustawienia</h2>
-        <label class="setting">
-          Minimalne podobieństwo do podpisania twarzy: <b id="thr-val"></b>
-          <input id="thr" type="range" min="20" max="80" step="1">
-          <span class="small">Ludzie zmieniają się przez 25 lat, więc domyślnie próg jest niski (45%). Niżej = więcej podpowiedzi (i pomyłek), wyżej = ostrzej. Procenty przy kandydatach widać zawsze, niezależnie od progu.</span>
-        </label>
         <label class="setting">
           Rozdzielczość detekcji na żywo: <b id="size-val"></b>
           <input id="size" type="range" min="160" max="608" step="32">

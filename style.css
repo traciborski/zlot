@@ -232,6 +232,22 @@ select {
 .dot.orange { background: #f5a524; }
 
 /* wyniki na żywo */
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-weight: 500;
+  outline: 2px solid #3b9eff;
+}
+.result-row.confirmed { outline-color: #2fbf71; }
+.result-row img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex: none; }
+.result-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-row .arrow, .muted { color: var(--muted); }
+.pct.big { font-size: 22px; }
 .live-results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .result {
   display: flex;
