@@ -1,5 +1,5 @@
 // Service worker: cache aplikacji i modeli, żeby działała offline.
-const CACHE = 'zlot-v1';
+const CACHE = 'zlot-v2';
 const ASSETS = [
   './',
   'index.html',
@@ -12,6 +12,8 @@ const ASSETS = [
   'vendor/face-api.esm.js',
   'vendor/models/tiny_face_detector_model-weights_manifest.json',
   'vendor/models/tiny_face_detector_model.bin',
+  'vendor/models/ssd_mobilenetv1_model-weights_manifest.json',
+  'vendor/models/ssd_mobilenetv1_model.bin',
   'vendor/models/face_landmark_68_model-weights_manifest.json',
   'vendor/models/face_landmark_68_model.bin',
   'vendor/models/face_recognition_model-weights_manifest.json',

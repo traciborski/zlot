@@ -19,47 +19,59 @@
   </header>
 
   <main>
-    <!-- Widok kamery na żywo -->
-    <section id="view-live" class="view active">
+    <!-- Zdjęcie grupowe -->
+    <section id="view-photo" class="view">
+      <div class="card">
+        <h2>Zdjęcie grupowe</h2>
+        <p class="small">Wczytaj stare zdjęcie (np. sprzed 25 lat). Aplikacja znajdzie na nim wszystkie twarze i będzie szukać tylko tych osób.</p>
+        <label class="button primary">
+          <span id="photo-btn-label">Wczytaj zdjęcie</span>
+          <input id="photo-file" type="file" accept="image/*" hidden>
+        </label>
+        <p id="photo-msg" class="msg"></p>
+      </div>
+
+      <div id="photo-wrap" class="photo-wrap" hidden>
+        <canvas id="photo-canvas"></canvas>
+      </div>
+      <p id="photo-hint" class="hint" hidden>Dotknij numeru, aby wpisać imię. Dotknij twarzy bez ramki, aby ją dodać.</p>
+
+      <div id="summary" class="summary" hidden></div>
+      <div id="faces" class="faces"></div>
+
+      <div id="project-tools" class="card" hidden>
+        <h2>Udostępnij</h2>
+        <p class="small">Przenieś zdjęcie z imionami i dopasowaniami na inny telefon.</p>
+        <div class="row">
+          <button id="btn-export">Eksportuj</button>
+          <label class="button">Importuj<input id="import-file" type="file" accept="application/json,.json" hidden></label>
+        </div>
+        <div class="row">
+          <button id="btn-reset-found">Wyczyść dopasowania</button>
+          <button id="btn-clear" class="danger">Usuń zdjęcie</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Kamera na żywo -->
+    <section id="view-live" class="view">
       <div class="stage">
         <video id="video" playsinline muted autoplay></video>
         <canvas id="overlay"></canvas>
         <div id="cam-placeholder" class="cam-placeholder">
-          <p>Naciśnij <b>Start</b>, aby włączyć kamerę.</p>
+          <p id="cam-placeholder-text">Naciśnij <b>Start</b>, aby włączyć kamerę.</p>
         </div>
       </div>
       <div class="controls">
         <button id="btn-start" class="primary">Start</button>
-        <button id="btn-flip" title="Przełącz kamerę" disabled>⟲ Kamera</button>
-        <button id="btn-snap" title="Dodaj osobę z kadru" disabled>＋ Z kadru</button>
+        <button id="btn-flip" disabled>⟲ Kamera</button>
       </div>
-      <p class="hint">Dotknij ramki twarzy, aby dodać / dopisać tę osobę.</p>
-    </section>
-
-    <!-- Widok listy osób -->
-    <section id="view-people" class="view">
-      <form id="add-form" class="card">
-        <h2>Dodaj osobę ze zdjęć</h2>
-        <input id="add-name" type="text" placeholder="Imię i nazwisko" required autocomplete="off">
-        <label class="file">
-          <input id="add-files" type="file" accept="image/*" multiple>
-          <span id="add-files-label">Wybierz zdjęcia (najlepiej 3–5)</span>
-        </label>
-        <button type="submit" class="primary">Zapisz</button>
-        <p id="add-msg" class="msg"></p>
-      </form>
-
-      <div id="people" class="people"></div>
-
-      <div class="card">
-        <h2>Baza</h2>
-        <p class="small">Dane są tylko na tym telefonie. Możesz je wyeksportować i wczytać na innym urządzeniu.</p>
-        <div class="row">
-          <button id="btn-export">Eksportuj</button>
-          <label class="button">Importuj<input id="import-file" type="file" accept="application/json,.json" hidden></label>
-          <button id="btn-clear" class="danger">Wyczyść</button>
-        </div>
-      </div>
+      <p class="hint">
+        <span class="dot green"></span>potwierdzony
+        <span class="dot blue"></span>prawdopodobnie
+        <span class="dot orange"></span>nie wiadomo
+        <br>Dotknij ramki twarzy, aby zobaczyć kandydatów i potwierdzić, kto to jest.
+      </p>
     </section>
 
     <!-- Ustawienia -->
@@ -67,41 +79,61 @@
       <div class="card">
         <h2>Ustawienia</h2>
         <label class="setting">
-          Próg rozpoznania: <b id="thr-val"></b>
-          <input id="thr" type="range" min="0.3" max="0.7" step="0.01">
-          <span class="small">Niżej = ostrzej (mniej pomyłek, więcej „Nieznany”).</span>
+          Tolerancja dla starego zdjęcia: <b id="thr-val"></b>
+          <input id="thr" type="range" min="0.45" max="0.85" step="0.01">
+          <span class="small">Ludzie zmieniają się przez 25 lat, więc domyślnie jest luźniej niż zwykle. Wyżej = więcej podpowiedzi (i pomyłek), niżej = ostrzej.</span>
         </label>
         <label class="setting">
-          Rozdzielczość detekcji: <b id="size-val"></b>
-          <input id="size" type="range" min="128" max="608" step="32">
-          <span class="small">Wyżej = lepiej wykrywa małe/dalekie twarze, ale wolniej.</span>
+          Rozdzielczość detekcji na żywo: <b id="size-val"></b>
+          <input id="size" type="range" min="160" max="608" step="32">
+          <span class="small">Wyżej = lepiej wykrywa dalekie twarze, ale wolniej.</span>
         </label>
       </div>
       <div class="card small">
-        <p>Rozpoznawanie działa w całości na telefonie (face-api / TensorFlow.js). Żadne zdjęcia nie są nigdzie wysyłane.</p>
-        <p>Pamiętaj o zgodzie osób, których twarze zapisujesz (RODO).</p>
+        <p>Jak to działa: każda twarz z kamery jest porównywana z twarzami ze zdjęcia, a każda osoba ze zdjęcia może być przypisana tylko jednej twarzy w kadrze.</p>
+        <p>Po potwierdzeniu („to jest ta osoba”) aplikacja zapamiętuje jej dzisiejszy wygląd i dalej rozpoznaje ją pewnie.</p>
+        <p>Wszystko działa na telefonie, nic nie jest wysyłane. Pamiętaj o zgodzie osób (RODO).</p>
       </div>
     </section>
   </main>
 
   <nav class="tabbar">
-    <button data-view="live" class="active">📷<span>Na żywo</span></button>
-    <button data-view="people">👥<span>Osoby <b id="people-count">0</b></span></button>
+    <button data-view="photo">🖼️<span>Zdjęcie</span></button>
+    <button data-view="live">📷<span>Na żywo</span></button>
     <button data-view="settings">⚙️<span>Ustawienia</span></button>
   </nav>
 
-  <dialog id="dlg-add">
-    <form method="dialog">
-      <img id="dlg-thumb" alt="">
-      <p>Kim jest ta osoba?</p>
-      <input id="dlg-name" type="text" list="names" placeholder="Imię i nazwisko" autocomplete="off">
-      <datalist id="names"></datalist>
-      <p class="small">Jeśli wpiszesz istniejące imię, zdjęcie zostanie dopisane do tej osoby (lepsza skuteczność).</p>
+  <!-- Kto to jest? (z kamery) -->
+  <dialog id="dlg-who">
+    <div class="dlg-body">
+      <img id="who-now" class="round" alt="">
+      <p><b>Kto to jest?</b></p>
+      <div id="who-candidates" class="candidates"></div>
+      <select id="who-select"></select>
       <div class="row">
-        <button value="cancel">Anuluj</button>
-        <button value="ok" class="primary">Zapisz</button>
+        <button id="who-stranger">Nie ma go/jej na zdjęciu</button>
+        <button id="who-cancel">Anuluj</button>
       </div>
-    </form>
+    </div>
+  </dialog>
+
+  <!-- Edycja twarzy ze zdjęcia -->
+  <dialog id="dlg-face">
+    <div class="dlg-body">
+      <div class="then-now">
+        <figure><img id="face-then" alt=""><figcaption>wtedy</figcaption></figure>
+        <figure id="face-now-fig"><img id="face-now" alt=""><figcaption>dziś</figcaption></figure>
+      </div>
+      <input id="face-name" type="text" placeholder="Imię i nazwisko" autocomplete="off">
+      <div class="row">
+        <button id="face-save" class="primary">Zapisz</button>
+        <button id="face-cancel">Anuluj</button>
+      </div>
+      <div class="row">
+        <button id="face-unfound">Cofnij dopasowanie</button>
+        <button id="face-delete" class="danger">Usuń twarz</button>
+      </div>
+    </div>
   </dialog>
 
   <script type="module" src="app.js"></script>
