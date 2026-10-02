@@ -92,6 +92,7 @@ const f32 = (a) => new Float32Array(a);
 
 function serialize(p) {
   return {
+    sourceId: p.sourceId || '',
     photo: p.photo,
     gray: p.gray,
     strangers: p.strangers.map(arr),
@@ -101,6 +102,7 @@ function serialize(p) {
 
 function deserialize(s) {
   return {
+    sourceId: s.sourceId || '',
     photo: s.photo,
     gray: !!s.gray,
     strangers: (s.strangers || []).map(f32),
@@ -809,6 +811,137 @@ function openWhoDialog(face) {
   dlg.showModal();
 }
 
+/* ---------- Zdjęcie na serwerze (zaszyfrowane hasłem) ---------- */
+
+// Plik data/zlot.enc: { app, v, id, salt, iv, data } – AES-256-GCM, klucz z hasła (PBKDF2).
+// Repozytorium jest publiczne, więc bez hasła plik jest bezużyteczny.
+const SHARED_URL = 'data/zlot.enc';
+const PBKDF2_ITER = 250000;
+let sharedFile = null;
+
+const b64 = {
+  enc(bytes) {
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  },
+  dec(str) {
+    const bin = atob(str);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  },
+};
+
+async function deriveKey(password, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITER, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
+  );
+}
+
+async function encryptProject(p, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const id = crypto.randomUUID();
+  const shared = { ...serialize(p), sourceId: id, strangers: [] };
+  const plain = new TextEncoder().encode(JSON.stringify(shared));
+  const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deriveKey(password, salt), plain));
+  return { app: 'zlot-enc', v: 1, id, salt: b64.enc(salt), iv: b64.enc(iv), data: b64.enc(data) };
+}
+
+async function decryptShared(file, password) {
+  const key = await deriveKey(password, b64.dec(file.salt));
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64.dec(file.iv) }, key, b64.dec(file.data));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+// Wczytuje zdjęcie z serwera; zachowuje lokalne potwierdzenia dla tych samych twarzy.
+async function applyShared(file, data) {
+  const incoming = deserialize(data);
+  incoming.sourceId = file.id;
+  if (project) {
+    for (const f of incoming.faces) {
+      const mine = project.faces.find((x) => x.id === f.id);
+      if (mine?.found && !f.found) Object.assign(f, { found: true, live: mine.live, nowThumb: mine.nowThumb });
+    }
+    incoming.strangers = project.strangers;
+  }
+  project = incoming;
+  photoImg = await loadPhotoCanvas(project.photo);
+  await saveProject();
+  renderPhoto();
+}
+
+async function checkShared() {
+  try {
+    const res = await fetch(SHARED_URL, { cache: 'no-cache' });
+    if (!res.ok) return;
+    const file = await res.json();
+    if (file.app !== 'zlot-enc') return;
+    sharedFile = file;
+  } catch {
+    return; // brak pliku albo offline
+  }
+  if (project?.sourceId === sharedFile.id) return; // już mamy tę wersję
+  const pw = localStorage.getItem('sharedPw');
+  if (pw && project?.sourceId) {
+    // nowa wersja zdjęcia na serwerze – spróbuj zapamiętanym hasłem
+    try {
+      await applyShared(sharedFile, await decryptShared(sharedFile, pw));
+      setStatus('Zaktualizowano zdjęcie z serwera', 'ok');
+      return;
+    } catch { /* hasło się zmieniło – zapytaj */ }
+  }
+  $('#unlock-text').textContent = project && !project.sourceId
+    ? 'Na serwerze jest zdjęcie zlotu. Wpisz hasło, aby je wczytać (zastąpi zdjęcie wczytane na tym telefonie).'
+    : project
+      ? 'Na serwerze jest nowa wersja zdjęcia zlotu. Wpisz hasło, aby ją wczytać.'
+      : 'Zdjęcie grupowe jest na serwerze, zabezpieczone hasłem. Wpisz hasło od organizatora.';
+  $('#unlock-card').hidden = false;
+  if (!project) showView('photo');
+}
+
+$('#unlock-card').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#unlock-msg');
+  const pw = $('#unlock-pw').value;
+  msg.className = 'msg';
+  msg.textContent = 'Odszyfrowuję…';
+  let data;
+  try {
+    data = await decryptShared(sharedFile, pw);
+  } catch {
+    msg.className = 'msg err';
+    msg.textContent = 'Złe hasło.';
+    return;
+  }
+  await applyShared(sharedFile, data);
+  localStorage.setItem('sharedPw', pw);
+  $('#unlock-pw').value = '';
+  msg.textContent = '';
+  $('#unlock-card').hidden = true;
+  showView('live');
+});
+
+$('#btn-publish').addEventListener('click', async () => {
+  const pw = prompt('Ustal hasło dla uczestników zlotu (min. 8 znaków):');
+  if (pw === null) return;
+  if (pw.length < 8) { alert('Hasło musi mieć co najmniej 8 znaków.'); return; }
+  if (prompt('Powtórz hasło:') !== pw) { alert('Hasła się różnią.'); return; }
+  const file = await encryptProject(project, pw);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/octet-stream' }));
+  a.download = 'zlot.enc';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  project.sourceId = file.id;
+  localStorage.setItem('sharedPw', pw);
+  await saveProject();
+  alert('Pobrano plik zlot.enc. Wgraj go do repozytorium jako data/zlot.enc (GitHub → Add file → Upload files). Hasło przekaż uczestnikom.');
+});
+
 /* ---------- Eksport / import ---------- */
 
 $('#btn-export').addEventListener('click', () => {
@@ -907,6 +1040,7 @@ async function init() {
   }
   renderPhoto();
   showView(project ? 'live' : 'photo');
+  checkShared();
 
   try {
     const webgl = await faceapi.tf.setBackend('webgl').catch(() => false);

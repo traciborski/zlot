@@ -312,3 +312,4 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 dialog .dlg-body { display: flex; flex-direction: column; gap: 10px; }
 dialog p { margin: 0; text-align: center; }
 dialog .row > * { flex: 1; }
+code { font-size: 13px; background: #0d1014; padding: 1px 4px; border-radius: 4px; }

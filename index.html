@@ -21,9 +21,17 @@
   <main>
     <!-- Zdjęcie grupowe -->
     <section id="view-photo" class="view">
+      <form id="unlock-card" class="card" hidden>
+        <h2>🔒 Zdjęcie zlotu</h2>
+        <p id="unlock-text" class="small">Zdjęcie grupowe jest na serwerze, zabezpieczone hasłem. Wpisz hasło od organizatora.</p>
+        <input id="unlock-pw" type="password" placeholder="Hasło" autocomplete="current-password" required>
+        <button type="submit" class="primary">Otwórz zdjęcie</button>
+        <p id="unlock-msg" class="msg"></p>
+      </form>
+
       <div class="card">
         <h2>Zdjęcie grupowe</h2>
-        <p class="small">Wczytaj stare zdjęcie (np. sprzed 25 lat). Aplikacja znajdzie na nim wszystkie twarze i będzie szukać tylko tych osób.</p>
+        <p class="small">Wczytaj stare zdjęcie (np. sprzed 25 lat). Aplikacja znajdzie na nim wszystkie twarze i będzie szukać tylko tych osób. Organizator może potem opublikować je na serwerze (z hasłem) – wtedy uczestnicy nie muszą nic wgrywać.</p>
         <label class="button primary">
           <span id="photo-btn-label">Wczytaj zdjęcie</span>
           <input id="photo-file" type="file" accept="image/*" hidden>
@@ -46,6 +54,9 @@
           <button id="btn-export">Eksportuj</button>
           <label class="button">Importuj<input id="import-file" type="file" accept="application/json,.json" hidden></label>
         </div>
+        <h2>Opublikuj na serwerze</h2>
+        <p class="small">Tworzy zaszyfrowany plik <code>zlot.enc</code> (zdjęcie, twarze, imiona). Wgraj go do repozytorium jako <code>data/zlot.enc</code> – każdy, kto otworzy aplikację i poda hasło, dostanie to zdjęcie automatycznie.</p>
+        <button id="btn-publish">Utwórz plik dla serwera</button>
         <div class="row">
           <button id="btn-reset-found">Wyczyść dopasowania</button>
           <button id="btn-clear" class="danger">Usuń zdjęcie</button>

@@ -16,6 +16,24 @@ Po pierwszym uruchomieniu działa też offline.
    - **iPhone / Safari:** przycisk *Udostępnij* → *Do ekranu początkowego*.
 3. Uruchom „Kto to?” z ekranu głównego jak zwykłą aplikację.
 
+## Zdjęcie na serwerze (dla wszystkich uczestników)
+
+Organizator przygotowuje zdjęcie raz, a uczestnicy dostają je automatycznie –
+wystarczy otworzyć aplikację i wpisać hasło.
+
+1. Organizator: **Zdjęcie → Wczytaj zdjęcie**, sprawdza twarze i wpisuje imiona.
+2. **Utwórz plik dla serwera** → ustala hasło → pobiera się plik `zlot.enc`.
+3. Wgrywa go do repozytorium jako **`data/zlot.enc`**
+   (GitHub → *Add file → Upload files*, folder `data`). Strona zaktualizuje się sama.
+4. Uczestnicy otwierają https://traciborski.github.io/zlot/, wpisują hasło
+   i od razu mogą używać kamery. Hasło jest zapamiętywane na telefonie;
+   gdy organizator wgra nową wersję pliku, telefony pobiorą ją same.
+
+Repozytorium i strona są publiczne, dlatego plik jest **zaszyfrowany** (AES‑256‑GCM,
+klucz z hasła przez PBKDF2, 250 000 iteracji). Bez hasła nie da się z niego odczytać
+ani zdjęcia, ani imion. Użyj hasła trudnego do zgadnięcia (najlepiej kilka słów)
+i przekazuj je tylko uczestnikom.
+
 ## Jak używać
 
 1. **Zdjęcie → Wczytaj zdjęcie** – wybierz zdjęcie grupowe (skan, zdjęcie odbitki).
