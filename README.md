@@ -54,7 +54,7 @@ wynik na liście kandydatów – a nie sama liczba.
 ### Czego się spodziewać
 
 Rozpoznanie twarzy sprzed 25 lat jest trudne nawet dla ludzi – automat podpowiada,
-ale przy dużej zmianie wyglądu może się mylić (niebieskie „?”). Dlatego ostateczne
+ale przy dużej zmianie wyglądu może się mylić (niebieskie ramki). Dlatego ostateczne
 przypisanie robi człowiek jednym dotknięciem, a każde potwierdzenie poprawia
 kolejne rozpoznania. Najlepiej działa przy twarzach zwróconych do kamery,
 w dobrym świetle, z odległości kilku metrów.
