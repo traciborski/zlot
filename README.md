@@ -12,7 +12,11 @@ Po pierwszym uruchomieniu działa też offline.
    Workflow `.github/workflows/pages.yml` opublikuje aplikację pod adresem
    `https://<użytkownik>.github.io/zlot/`.
 2. Otwórz ten adres na telefonie (kamera wymaga HTTPS).
-   - **Android / Chrome:** menu ⋮ →## Jak używać
+   - **Android / Chrome:** menu ⋮ → *Dodaj do ekranu głównego* / *Zainstaluj aplikację*.
+   - **iPhone / Safari:** przycisk *Udostępnij* → *Do ekranu początkowego*.
+3. Uruchom „Kto to?” z ekranu głównego jak zwykłą aplikację.
+
+## Jak używać
 
 1. **Zdjęcie → Wczytaj zdjęcie** – wybierz zdjęcie grupowe (skan, zdjęcie odbitki).
    Aplikacja znajduje wszystkie twarze (również małe w tylnych rzędach) i numeruje je.
@@ -43,10 +47,6 @@ przypisanie robi człowiek jednym dotknięciem, a każde potwierdzenie poprawia
 kolejne rozpoznania. Najlepiej działa przy twarzach zwróconych do kamery,
 w dobrym świetle, z odległości kilku metrów.
 
-. żeby kilka osób na zlocie miało tę samą bazę).
-6. **Ustawienia** – próg rozpoznania (niżej = ostrzej) i rozdzielczość detekcji
-   (wyżej = lepiej wykrywa małe/dalekie twarze, ale wolniej).
-
 ## Uruchomienie lokalnie
 
 ```sh
@@ -62,8 +62,7 @@ Na telefonie w sieci lokalnej kamera zadziała tylko przez HTTPS
 - [face-api (@vladmandic)](https://github.com/vladmandic/face-api) na TensorFlow.js
   (WebGL na GPU telefonu), dołączone w `vendor/` wraz z modelami:
   TinyFaceDetector + SSD MobileNet (detekcja; na zdjęciu grupowym także kafelkami),
-  FaceLandmark68 (punkty twarzy),
-  FaceRecognitionNet (wektor 128‑D do porównywania).
+  FaceLandmark68 (punkty twarzy), FaceRecognitionNet (wektor 128‑D do porównywania).
 - Zdjęcie, imiona i dopasowania w IndexedDB przeglądarki, service worker do pracy offline.
 - Bez kroku budowania – czysty HTML/CSS/JS.
 
