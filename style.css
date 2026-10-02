@@ -313,3 +313,18 @@ dialog .dlg-body { display: flex; flex-direction: column; gap: 10px; }
 dialog p { margin: 0; text-align: center; }
 dialog .row > * { flex: 1; }
 code { font-size: 13px; background: #0d1014; padding: 1px 4px; border-radius: 4px; }
+
+.nothumb {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #2a313b;
+  color: var(--fg);
+  font-weight: 700;
+  font-size: 20px;
+  flex: none;
+}
+.result-row .nothumb { width: 52px; height: 52px; }
+.cand .nothumb { grid-row: span 2; }

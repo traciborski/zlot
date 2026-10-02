@@ -55,6 +55,8 @@ function escapeHtml(s) {
 }
 
 const faceLabel = (f) => f.name || `Osoba ${f.n}`;
+// Miniatura twarzy ze zdjęcia – albo sam numer, gdy zdjęcie nie zostało udostępnione (dane z serwera).
+const thumbHtml = (f) => (f.thumb ? `<img src="${f.thumb}" alt="">` : `<span class="nothumb">${f.n}</span>`);
 
 /* ---------- Zapis (IndexedDB) ---------- */
 
@@ -378,8 +380,8 @@ async function addFaceAt(px, py) {
 
 function renderPhoto() {
   const has = !!project;
-  $('#photo-wrap').hidden = !has;
-  $('#photo-hint').hidden = !has;
+  $('#photo-wrap').hidden = !photoImg;
+  $('#photo-hint').hidden = !photoImg;
   $('#summary').hidden = !has;
   $('#project-tools').hidden = !has;
   $('#photo-btn-label').textContent = has ? 'Wczytaj inne zdjęcie' : 'Wczytaj zdjęcie';
@@ -388,7 +390,23 @@ function renderPhoto() {
     : 'Najpierw wczytaj zdjęcie grupowe w zakładce <b>Zdjęcie</b>.';
   if (!has) { $('#faces').innerHTML = ''; return; }
 
-  // zdjęcie z numerami
+  if (photoImg) drawPhoto();
+
+  const found = project.faces.filter((f) => f.found).length;
+  $('#summary').innerHTML = `Znalezieni: <b>${found}</b> z <b>${project.faces.length}</b>`;
+
+  const sorted = [...project.faces].sort((a, b) => a.n - b.n);
+  $('#faces').innerHTML = sorted.map((f) => `
+    <button class="face ${f.found ? 'found' : ''}" data-id="${f.id}">
+      <span class="num">${f.n}</span>
+      <span class="pics">${thumbHtml(f)}${f.nowThumb ? `<img src="${f.nowThumb}" alt="">` : ''}</span>
+      <span class="name">${escapeHtml(faceLabel(f))}</span>
+      <span class="small">${f.found ? '✓ jest' : 'jeszcze nie'}</span>
+    </button>`).join('');
+}
+
+// zdjęcie z numerami
+function drawPhoto() {
   photoCanvas.width = photoImg.width;
   photoCanvas.height = photoImg.height;
   const g = photoCanvas.getContext('2d');
@@ -415,18 +433,6 @@ function renderPhoto() {
     g.fillStyle = '#000';
     g.fillText(String(f.n), cx, cy + 1);
   }
-
-  const found = project.faces.filter((f) => f.found).length;
-  $('#summary').innerHTML = `Znalezieni: <b>${found}</b> z <b>${project.faces.length}</b>`;
-
-  const sorted = [...project.faces].sort((a, b) => a.n - b.n);
-  $('#faces').innerHTML = sorted.map((f) => `
-    <button class="face ${f.found ? 'found' : ''}" data-id="${f.id}">
-      <span class="num">${f.n}</span>
-      <span class="pics"><img src="${f.thumb}" alt="">${f.nowThumb ? `<img src="${f.nowThumb}" alt="">` : ''}</span>
-      <span class="name">${escapeHtml(faceLabel(f))}</span>
-      <span class="small">${f.found ? '✓ jest' : 'jeszcze nie'}</span>
-    </button>`).join('');
 }
 
 $('#faces').addEventListener('click', (e) => {
@@ -435,7 +441,7 @@ $('#faces').addEventListener('click', (e) => {
 });
 
 photoCanvas.addEventListener('click', (ev) => {
-  if (!project || !modelsReady) return;
+  if (!project || !photoImg || !modelsReady) return;
   const rect = photoCanvas.getBoundingClientRect();
   const s = photoCanvas.width / rect.width;
   const x = (ev.clientX - rect.left) * s;
@@ -452,7 +458,8 @@ photoCanvas.addEventListener('click', (ev) => {
 function openFaceDialog(face) {
   if (!face) return;
   const dlg = $('#dlg-face');
-  $('#face-then').src = face.thumb;
+  $('#face-then').src = face.thumb || '';
+  $('#face-then').closest('figure').hidden = !face.thumb;
   $('#face-now').src = face.nowThumb || '';
   $('#face-now-fig').hidden = !face.nowThumb;
   $('#face-name').value = face.name;
@@ -649,8 +656,8 @@ function renderLiveResults(force = false) {
     const idx = lastFaces.indexOf(f);
     const m = f.match;
     const body = m
-      ? `<span class="arrow">→</span><img src="${m.face.thumb}" alt="">
-         <span class="name">${m.face.n}. ${escapeHtml(faceLabel(m.face))}${m.confirmed ? ' ✓' : ''}</span>
+      ? `<span class="arrow">→</span>${thumbHtml(m.face)}
+         <span class="name">${m.face.thumb ? `${m.face.n}. ` : ''}${escapeHtml(faceLabel(m.face))}${m.confirmed ? ' ✓' : ''}</span>
          <b class="pct big">${m.pct}%</b>`
       : `<span class="name muted">${f.stranger ? 'Spoza zdjęcia' : 'Wszyscy ze zdjęcia już przypisani'}</span>`;
     return `<button class="result-row ${m?.confirmed ? 'confirmed' : ''}" data-i="${idx}">
@@ -720,7 +727,7 @@ function draw(faces) {
     labels.push({ lx, ly, tw, th, pad, color, label });
 
     // miniatura twarzy ze starego zdjęcia obok ramki
-    if (f.match) {
+    if (f.match?.face.thumb) {
       const img = getThumbImg(f.match.face);
       const ts = Math.max(48 * scale, b.height * 0.55);
       let tx = b.x + b.width + lw;
@@ -786,7 +793,7 @@ function openWhoDialog(face) {
   const top = face.cands.slice(0, 3);
   $('#who-candidates').innerHTML = top.map((c, i) => `
     <button class="cand" data-i="${i}">
-      <img src="${c.face.thumb}" alt="">
+      ${thumbHtml(c.face)}
       <span class="name">${c.face.n}. ${escapeHtml(faceLabel(c.face))}</span>
       <span class="small"><b class="pct">${c.pct}%</b> podobieństwa${c.face.found ? ' · już jest' : ''}</span>
     </button>`).join('');
@@ -811,135 +818,75 @@ function openWhoDialog(face) {
   dlg.showModal();
 }
 
-/* ---------- Zdjęcie na serwerze (zaszyfrowane hasłem) ---------- */
+/* ---------- Dane na serwerze (bez zdjęcia) ---------- */
 
-// Plik data/zlot.enc: { app, v, id, salt, iv, data } – AES-256-GCM, klucz z hasła (PBKDF2).
-// Repozytorium jest publiczne, więc bez hasła plik jest bezużyteczny.
-const SHARED_URL = 'data/zlot.enc';
-const PBKDF2_ITER = 250000;
-let sharedFile = null;
+// Plik data/zlot.json zawiera tylko numery, imiona i wektory cech twarzy (bez zdjęcia i bez wycinków twarzy).
+// Każdy, kto otworzy aplikację, dostaje go automatycznie.
+const SHARED_URL = 'data/zlot.json';
 
-const b64 = {
-  enc(bytes) {
-    let s = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    return btoa(s);
-  },
-  dec(str) {
-    const bin = atob(str);
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
-  },
-};
-
-async function deriveKey(password, salt) {
-  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITER, hash: 'SHA-256' },
-    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
-  );
+function sharedPayload(p, id) {
+  return {
+    app: 'zlot-shared',
+    v: 2,
+    id,
+    gray: p.gray,
+    faces: p.faces.map((f) => ({ id: f.id, n: f.n, name: f.name, old: arr(f.old) })),
+  };
 }
 
-async function encryptProject(p, password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const id = crypto.randomUUID();
-  const shared = { ...serialize(p), sourceId: id, strangers: [] };
-  const plain = new TextEncoder().encode(JSON.stringify(shared));
-  const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deriveKey(password, salt), plain));
-  return { app: 'zlot-enc', v: 1, id, salt: b64.enc(salt), iv: b64.enc(iv), data: b64.enc(data) };
-}
-
-async function decryptShared(file, password) {
-  const key = await deriveKey(password, b64.dec(file.salt));
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64.dec(file.iv) }, key, b64.dec(file.data));
-  return JSON.parse(new TextDecoder().decode(plain));
-}
-
-// Wczytuje zdjęcie z serwera; zachowuje lokalne potwierdzenia dla tych samych twarzy.
-async function applyShared(file, data) {
-  const incoming = deserialize(data);
-  incoming.sourceId = file.id;
-  if (project) {
-    for (const f of incoming.faces) {
-      const mine = project.faces.find((x) => x.id === f.id);
-      if (mine?.found && !f.found) Object.assign(f, { found: true, live: mine.live, nowThumb: mine.nowThumb });
-    }
-    incoming.strangers = project.strangers;
-  }
-  project = incoming;
-  photoImg = await loadPhotoCanvas(project.photo);
+// Wczytuje dane z serwera; zachowuje lokalne potwierdzenia (dzisiejszy wygląd) dla tych samych twarzy.
+async function applyShared(file) {
+  const faces = file.faces.map((f) => {
+    const mine = project?.faces.find((x) => x.id === f.id);
+    return {
+      id: f.id, n: f.n, name: f.name || '', box: mine?.box || null,
+      thumb: mine?.thumb || '', old: f32(f.old),
+      live: mine?.live || [], nowThumb: mine?.nowThumb || '', found: !!mine?.found,
+    };
+  });
+  // zdjęcie zostaje tylko na telefonie, z którego je wczytano
+  const keepPhoto = project?.photo && faces.every((f) => f.box);
+  project = {
+    sourceId: file.id,
+    photo: keepPhoto ? project.photo : '',
+    gray: !!file.gray,
+    faces,
+    strangers: project?.strangers || [],
+  };
+  photoImg = project.photo ? photoImg : null;
   await saveProject();
   renderPhoto();
 }
 
 async function checkShared() {
+  let file;
   try {
     const res = await fetch(SHARED_URL, { cache: 'no-cache' });
     if (!res.ok) return;
-    const file = await res.json();
-    if (file.app !== 'zlot-enc') return;
-    sharedFile = file;
+    file = await res.json();
   } catch {
     return; // brak pliku albo offline
   }
-  if (project?.sourceId === sharedFile.id) return; // już mamy tę wersję
-  const pw = localStorage.getItem('sharedPw');
-  if (pw && project?.sourceId) {
-    // nowa wersja zdjęcia na serwerze – spróbuj zapamiętanym hasłem
-    try {
-      await applyShared(sharedFile, await decryptShared(sharedFile, pw));
-      setStatus('Zaktualizowano zdjęcie z serwera', 'ok');
-      return;
-    } catch { /* hasło się zmieniło – zapytaj */ }
-  }
-  $('#unlock-text').textContent = project && !project.sourceId
-    ? 'Na serwerze jest zdjęcie zlotu. Wpisz hasło, aby je wczytać (zastąpi zdjęcie wczytane na tym telefonie).'
-    : project
-      ? 'Na serwerze jest nowa wersja zdjęcia zlotu. Wpisz hasło, aby ją wczytać.'
-      : 'Zdjęcie grupowe jest na serwerze, zabezpieczone hasłem. Wpisz hasło od organizatora.';
-  $('#unlock-card').hidden = false;
-  if (!project) showView('photo');
+  if (file.app !== 'zlot-shared' || !Array.isArray(file.faces)) return;
+  if (project?.sourceId === file.id) return; // już mamy tę wersję
+  if (project && !project.sourceId &&
+      !confirm('Na serwerze są dane zlotu. Wczytać je zamiast zdjęcia wczytanego na tym telefonie?')) return;
+  await applyShared(file);
+  setStatus(`Wczytano z serwera: ${file.faces.length} osób`, 'ok');
+  if ($('#view-photo').classList.contains('active')) showView('live');
 }
 
-$('#unlock-card').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const msg = $('#unlock-msg');
-  const pw = $('#unlock-pw').value;
-  msg.className = 'msg';
-  msg.textContent = 'Odszyfrowuję…';
-  let data;
-  try {
-    data = await decryptShared(sharedFile, pw);
-  } catch {
-    msg.className = 'msg err';
-    msg.textContent = 'Złe hasło.';
-    return;
-  }
-  await applyShared(sharedFile, data);
-  localStorage.setItem('sharedPw', pw);
-  $('#unlock-pw').value = '';
-  msg.textContent = '';
-  $('#unlock-card').hidden = true;
-  showView('live');
-});
-
 $('#btn-publish').addEventListener('click', async () => {
-  const pw = prompt('Ustal hasło dla uczestników zlotu (min. 8 znaków):');
-  if (pw === null) return;
-  if (pw.length < 8) { alert('Hasło musi mieć co najmniej 8 znaków.'); return; }
-  if (prompt('Powtórz hasło:') !== pw) { alert('Hasła się różnią.'); return; }
-  const file = await encryptProject(project, pw);
+  if (!project.faces.length) return;
+  const id = crypto.randomUUID();
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/octet-stream' }));
-  a.download = 'zlot.enc';
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(sharedPayload(project, id))], { type: 'application/json' }));
+  a.download = 'zlot.json';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  project.sourceId = file.id;
-  localStorage.setItem('sharedPw', pw);
+  project.sourceId = id;
   await saveProject();
-  alert('Pobrano plik zlot.enc. Wgraj go do repozytorium jako data/zlot.enc (GitHub → Add file → Upload files). Hasło przekaż uczestnikom.');
+  alert('Pobrano plik zlot.json (bez zdjęcia – tylko numery, imiona i cechy twarzy). Wgraj go do repozytorium jako data/zlot.json (GitHub → Add file → Upload files).');
 });
 
 /* ---------- Eksport / import ---------- */
@@ -962,7 +909,7 @@ $('#import-file').addEventListener('change', async (e) => {
     if (data.app !== 'zlot-photo' || !data.project) throw new Error('To nie jest plik z tej aplikacji');
     if (project && !confirm('Zastąpić obecne zdjęcie danymi z pliku?')) return;
     project = deserialize(data.project);
-    photoImg = await loadPhotoCanvas(project.photo);
+    photoImg = project.photo ? await loadPhotoCanvas(project.photo) : null;
     await saveProject();
     renderPhoto();
   } catch (err) {
@@ -1033,7 +980,7 @@ async function init() {
     const saved = await dbGet('project');
     if (saved) {
       project = deserialize(saved);
-      photoImg = await loadPhotoCanvas(project.photo);
+      photoImg = project.photo ? await loadPhotoCanvas(project.photo) : null;
     }
   } catch (e) {
     console.error(e);
