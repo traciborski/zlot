@@ -26,18 +26,30 @@ Po pierwszym uruchomieniu działa też offline.
      też jest analizowany w odcieniach szarości, żeby porównanie było uczciwe.
 2. **Na żywo → Start** – skieruj kamerę na ludzi. Przy każdej twarzy pojawia się
    numer i imię ze zdjęcia oraz miniatura twarzy sprzed lat:
-   - 🔵 niebieska ramka „Imię?” – prawdopodobnie ta osoba (podobieństwo do starego zdjęcia),
-   - 🟢 zielona ramka „Imię ✓” – potwierdzona osoba,
+   - 🔵 niebieska ramka „Imię 63%” – prawdopodobnie ta osoba (% podobieństwa do starego zdjęcia),
+   - 🟢 zielona ramka „Imię 90% ✓” – potwierdzona osoba,
    - 🟠 „Nie wiadomo” – nikt ze zdjęcia nie pasuje wystarczająco,
    - ⚪ „Spoza zdjęcia” – osoba oznaczona jako nieobecna na zdjęciu.
+   Pod podglądem jest lista: dla każdej twarzy w kadrze 3 najbardziej podobne osoby
+   ze zdjęcia z procentem podobieństwa. **⏸ Zatrzymaj** zamraża klatkę, żeby spokojnie
+   odczytać wyniki.
 3. **Dotknij ramki twarzy** – zobaczysz 3 najbardziej podobne osoby ze zdjęcia.
    Wybierz właściwą (albo inną z listy, albo „Nie ma go/jej na zdjęciu”).
    Po potwierdzeniu aplikacja zapamiętuje **dzisiejszy wygląd** tej osoby
    i od tej pory rozpoznaje ją pewnie (zielona ramka). Na liście w zakładce
    *Zdjęcie* widać „wtedy / dziś” i licznik „Znalezieni: X z Y”.
 4. **Eksport / Import** – przeniesienie zdjęcia z imionami i dopasowaniami na inny telefon.
-5. **Ustawienia** – tolerancja dla starego zdjęcia (domyślnie luźniej niż zwykle,
-   bo przez 25 lat ludzie się zmieniają) i rozdzielczość detekcji na żywo.
+5. **Ustawienia** – minimalne podobieństwo (%), od którego twarz jest podpisywana
+   (domyślnie 45%, bo przez 25 lat ludzie się zmieniają) i rozdzielczość detekcji na żywo.
+
+### Jak czytać procenty
+
+Procent to podobieństwo wektorów twarzy (100% = praktycznie to samo ujęcie,
+0% = zupełnie różne twarze), a nie prawdopodobieństwo, że to ta osoba.
+W testach obca osoba podobnego typu urody dostała nawet ~65%, a ta sama osoba
+na tym samym zdjęciu ~100%. Po 25 latach ta sama osoba zwykle wypada gdzieś
+pośrodku, więc najważniejsze jest **porównanie** – kto ma wyraźnie najwyższy
+wynik na liście kandydatów – a nie sama liczba.
 
 ### Czego się spodziewać
 

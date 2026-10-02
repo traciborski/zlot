@@ -64,14 +64,16 @@
       </div>
       <div class="controls">
         <button id="btn-start" class="primary">Start</button>
+        <button id="btn-freeze" disabled>⏸ Zatrzymaj</button>
         <button id="btn-flip" disabled>⟲ Kamera</button>
       </div>
       <p class="hint">
         <span class="dot green"></span>potwierdzony
         <span class="dot blue"></span>prawdopodobnie
         <span class="dot orange"></span>nie wiadomo
-        <br>Dotknij ramki twarzy, aby zobaczyć kandydatów i potwierdzić, kto to jest.
+        <br>% = podobieństwo twarzy do osoby ze zdjęcia. Dotknij twarzy, aby potwierdzić, kto to jest.
       </p>
+      <div id="live-results" class="live-results"></div>
     </section>
 
     <!-- Ustawienia -->
@@ -79,9 +81,9 @@
       <div class="card">
         <h2>Ustawienia</h2>
         <label class="setting">
-          Tolerancja dla starego zdjęcia: <b id="thr-val"></b>
-          <input id="thr" type="range" min="0.45" max="0.85" step="0.01">
-          <span class="small">Ludzie zmieniają się przez 25 lat, więc domyślnie jest luźniej niż zwykle. Wyżej = więcej podpowiedzi (i pomyłek), niżej = ostrzej.</span>
+          Minimalne podobieństwo do podpisania twarzy: <b id="thr-val"></b>
+          <input id="thr" type="range" min="20" max="80" step="1">
+          <span class="small">Ludzie zmieniają się przez 25 lat, więc domyślnie próg jest niski (45%). Niżej = więcej podpowiedzi (i pomyłek), wyżej = ostrzej. Procenty przy kandydatach widać zawsze, niezależnie od progu.</span>
         </label>
         <label class="setting">
           Rozdzielczość detekcji na żywo: <b id="size-val"></b>

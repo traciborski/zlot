@@ -1,5 +1,5 @@
 // Service worker: cache aplikacji i modeli, żeby działała offline.
-const CACHE = 'zlot-v2';
+const CACHE = 'zlot-v3';
 const ASSETS = [
   './',
   'index.html',

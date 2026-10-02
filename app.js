@@ -5,6 +5,11 @@ const DB_NAME = 'zlot-photo';
 const STORE = 'kv';
 const LIVE_THRESHOLD = 0.5;   // próg dla dzisiejszego wyglądu (po potwierdzeniu)
 const MAX_LIVE = 10;          // ile dzisiejszych ujęć pamiętamy na osobę
+// Skala procentowa podobieństwa: odległość ≤ D_SAME → 100%, ≥ D_DIFF → 0%.
+const D_SAME = 0.3;
+const D_DIFF = 0.9;
+const toPct = (d) => Math.round(Math.max(0, Math.min(1, (D_DIFF - d) / (D_DIFF - D_SAME))) * 100);
+const fromPct = (p) => D_DIFF - (p / 100) * (D_DIFF - D_SAME);
 
 const $ = (sel) => document.querySelector(sel);
 const statusEl = $('#status');
@@ -16,7 +21,7 @@ const photoCanvas = $('#photo-canvas');
 const frame = document.createElement('canvas'); // klatka z kamery (ew. w odcieniach szarości)
 
 const settings = {
-  threshold: parseFloat(localStorage.getItem('threshold')) || 0.62,
+  threshold: parseFloat(localStorage.getItem('threshold')) || 0.63,
   inputSize: parseInt(localStorage.getItem('inputSize'), 10) || 416,
 };
 
@@ -496,11 +501,15 @@ function minDist(d, list) {
   return m;
 }
 
-// Wynik ≤ 1 oznacza dopasowanie. Dzisiejszy wygląd (po potwierdzeniu) ma ostrzejszy próg.
+// s ≤ 1 oznacza dopasowanie. Dzisiejszy wygląd (po potwierdzeniu) ma ostrzejszy próg.
+// pct – podobieństwo w procentach (do starego zdjęcia lub do potwierdzonego dzisiejszego wyglądu).
 function score(d, face) {
-  const old = faceapi.euclideanDistance(d, face.old) / settings.threshold;
-  const live = face.live.length ? minDist(d, face.live) / LIVE_THRESHOLD : Infinity;
-  return { s: Math.min(old, live), confirmed: live <= old && live <= 1 };
+  const dOld = faceapi.euclideanDistance(d, face.old);
+  const dLive = face.live.length ? minDist(d, face.live) : Infinity;
+  const old = dOld / settings.threshold;
+  const live = dLive / LIVE_THRESHOLD;
+  const confirmed = live <= old && live <= 1;
+  return { s: Math.min(old, live), confirmed, pct: toPct(confirmed ? dLive : dOld), pctOld: toPct(dOld) };
 }
 
 // Każda osoba ze zdjęcia może być przypisana tylko jednej twarzy w kadrze
@@ -553,6 +562,8 @@ async function startCamera() {
   $('#cam-placeholder').hidden = true;
   $('#btn-start').textContent = 'Stop';
   $('#btn-flip').disabled = false;
+  $('#btn-freeze').disabled = false;
+  $('#btn-freeze').textContent = '⏸ Zatrzymaj';
   requestWakeLock();
   if (!running) loop();
 }
@@ -566,6 +577,9 @@ function stopCamera() {
   $('#cam-placeholder').hidden = false;
   $('#btn-start').textContent = 'Start';
   $('#btn-flip').disabled = true;
+  $('#btn-freeze').disabled = true;
+  $('#btn-freeze').textContent = '⏸ Zatrzymaj';
+  $('#live-results').innerHTML = '';
   if (wakeLock) wakeLock.release().catch(() => {});
   wakeLock = null;
 }
@@ -590,7 +604,7 @@ async function loop() {
   running = true;
   while (stream) {
     const visible = $('#view-live').classList.contains('active') && !document.hidden;
-    if (!modelsReady || !visible || video.readyState < 2 || !project) {
+    if (!modelsReady || !visible || video.readyState < 2 || !project || video.paused) {
       await sleep(200);
       continue;
     }
@@ -608,6 +622,7 @@ async function loop() {
     const matches = assign(results.map((r) => r.descriptor));
     lastFaces = results.map((r, i) => ({ box: r.detection.box, descriptor: r.descriptor, ...matches[i] }));
     draw(lastFaces);
+    renderLiveResults();
     const fps = 1000 / Math.max(performance.now() - t0, 1);
     const found = project.faces.filter((f) => f.found).length;
     setStatus(`jest ${found}/${project.faces.length} · ${fps < 10 ? fps.toFixed(1) : Math.round(fps)} kl/s`, 'ok');
@@ -615,6 +630,54 @@ async function loop() {
   }
   running = false;
 }
+
+// Lista pod podglądem: dla każdej twarzy w kadrze 3 najbardziej podobne osoby ze zdjęcia (w %).
+let lastResultsRender = 0;
+function renderLiveResults(force = false) {
+  const now = performance.now();
+  if (!force && now - lastResultsRender < 700) return;
+  lastResultsRender = now;
+  const faces = [...lastFaces].sort((a, b) => displayBox(a.box).x - displayBox(b.box).x);
+  const el = $('#live-results');
+  if (!faces.length) {
+    el.innerHTML = '<p class="small" style="text-align:center">Nie widzę żadnej twarzy w kadrze.</p>';
+    return;
+  }
+  el.innerHTML = faces.map((f) => {
+    const idx = lastFaces.indexOf(f);
+    const head = f.match
+      ? `<b>${f.match.face.n}. ${escapeHtml(faceLabel(f.match.face))}</b> <span class="pct">${f.match.pct}%</span>${f.match.confirmed ? ' ✓' : ''}`
+      : f.stranger ? 'Spoza zdjęcia' : 'Nie wiadomo';
+    const rows = f.cands.slice(0, 3).map((c) => `
+      <div class="cand-row ${f.match?.face === c.face ? 'chosen' : ''}">
+        <img src="${c.face.thumb}" alt="">
+        <span class="name">${c.face.n}. ${escapeHtml(faceLabel(c.face))}</span>
+        <span class="bar"><i style="width:${c.pct}%"></i></span>
+        <b class="pct">${c.pct}%</b>
+      </div>`).join('');
+    return `<button class="result" data-i="${idx}">
+      <div class="result-head"><img src="${cropThumb(video, f.box, 96)}" alt=""><span>${head}</span></div>
+      ${rows}
+    </button>`;
+  }).join('');
+}
+
+$('#live-results').addEventListener('click', (e) => {
+  const el = e.target.closest('.result');
+  if (el && lastFaces[Number(el.dataset.i)]) openWhoDialog(lastFaces[Number(el.dataset.i)]);
+});
+
+$('#btn-freeze').addEventListener('click', () => {
+  if (!stream) return;
+  if (video.paused) {
+    video.play();
+    $('#btn-freeze').textContent = '⏸ Zatrzymaj';
+  } else {
+    video.pause();
+    $('#btn-freeze').textContent = '▶ Wznów';
+    renderLiveResults(true);
+  }
+});
 
 // Ramki rysujemy odbite dla przedniej kamery (sam obraz video jest odbity w CSS), tekst zostaje czytelny.
 function displayBox(box) {
@@ -642,7 +705,7 @@ function draw(faces) {
     let label = 'Nie wiadomo';
     if (f.match) {
       color = f.match.confirmed ? '#2fbf71' : '#3b9eff';
-      label = `${f.match.face.n}. ${faceLabel(f.match.face)}${f.match.confirmed ? ' ✓' : '?'}`;
+      label = `${f.match.face.n}. ${faceLabel(f.match.face)} ${f.match.pct}%${f.match.confirmed ? ' ✓' : ''}`;
     } else if (f.stranger) {
       color = '#8b95a1';
       label = 'Spoza zdjęcia';
@@ -724,7 +787,7 @@ function openWhoDialog(face) {
     <button class="cand" data-i="${i}">
       <img src="${c.face.thumb}" alt="">
       <span class="name">${c.face.n}. ${escapeHtml(faceLabel(c.face))}</span>
-      <span class="small">${c.s <= 1 ? 'pasuje' : 'mniej podobny'}${c.face.found ? ' · już jest' : ''}</span>
+      <span class="small"><b class="pct">${c.pct}%</b> podobieństwa${c.face.found ? ' · już jest' : ''}</span>
     </button>`).join('');
   $('#who-candidates').onclick = (e) => {
     const b = e.target.closest('.cand');
@@ -805,7 +868,18 @@ function bindSetting(id, key, fmt) {
     localStorage.setItem(key, input.value);
   });
 }
-bindSetting('thr', 'threshold', (v) => v.toFixed(2));
+// Próg pokazujemy jako minimalne podobieństwo w %, a przechowujemy jako odległość.
+{
+  const input = $('#thr');
+  const out = $('#thr-val');
+  input.value = toPct(settings.threshold);
+  out.textContent = `${input.value}%`;
+  input.addEventListener('input', () => {
+    settings.threshold = fromPct(Number(input.value));
+    out.textContent = `${input.value}%`;
+    localStorage.setItem('threshold', settings.threshold);
+  });
+}
 bindSetting('size', 'inputSize', (v) => `${v}px`);
 
 /* ---------- Nawigacja ---------- */
